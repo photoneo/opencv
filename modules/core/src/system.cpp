@@ -1067,7 +1067,7 @@ public:
     }
 
     // Reserve TLS storage index
-    size_t reserveSlot()
+    size_t reserveSlot(TLSDataContainer *container)
     {
         AutoLock guard(mtxGlobalAccess);
 
@@ -1076,13 +1076,13 @@ public:
         {
             if(!tlsSlots[slot])
             {
-                tlsSlots[slot] = 1;
+                tlsSlots[slot] = container;
                 return slot;
             }
         }
 
         // Create new slot
-        tlsSlots.push_back(1);
+        tlsSlots.push_back(container);
         return (tlsSlots.size()-1);
     }
 
@@ -1105,7 +1105,7 @@ public:
             }
         }
 
-        tlsSlots[slotIdx] = 0;
+        tlsSlots[slotIdx] = NULL;
     }
 
     // Get data by TLS storage index
@@ -1174,9 +1174,9 @@ public:
 private:
     TlsAbstraction tls; // TLS abstraction layer instance
 
-    Mutex  mtxGlobalAccess;           // Shared objects operation guard
-    std::vector<int> tlsSlots;        // TLS keys state
-    std::vector<ThreadData*> threads; // Array for all allocated data. Thread data pointers are placed here to allow data cleanup
+    Mutex  mtxGlobalAccess;                  // Shared objects operation guard
+    std::vector<TLSDataContainer*> tlsSlots; // TLS keys state
+    std::vector<ThreadData*> threads;        // Array for all allocated data. Thread data pointers are placed here to allow data cleanup
 };
 
 // Create global TLS storage object
@@ -1194,7 +1194,7 @@ void TlsAbstraction::releaseThread(void *pData)
 
 TLSDataContainer::TLSDataContainer()
 {
-    key_ = (int)getTlsStorage().reserveSlot(); // Reserve key from TLS storage
+    key_ = (int)getTlsStorage().reserveSlot(this); // Reserve key from TLS storage
 }
 
 TLSDataContainer::~TLSDataContainer()
