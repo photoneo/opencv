@@ -1050,7 +1050,7 @@ public:
         {
             if(pTD == threads[i])
             {
-                threads[i] = 0;
+                threads[i] = NULL;
                 break;
             }
         }
@@ -1135,8 +1135,16 @@ public:
             tls.SetData((void*)threadData);
             {
                 AutoLock guard(mtxGlobalAccess);
-                threadData->idx = threads.size();
-                threads.push_back(threadData);
+
+                // Find unused thread
+                size_t i = 0;
+                for(; i < threads.size() && threads[i]; i++);
+
+                while(i >= threads.size())
+                    threads.push_back(NULL);
+
+                threadData->idx = i;
+                threads[i] = threadData;
             }
         }
 
