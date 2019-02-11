@@ -944,6 +944,7 @@ private:
     DWORD tlsKey;
 #endif
 #else // WIN32
+    static void releaseThread(void *pData);
     pthread_key_t  tlsKey;
 #endif
 };
@@ -983,7 +984,7 @@ void  TlsAbstraction::SetData(void *pData)
 #else // WIN32
 TlsAbstraction::TlsAbstraction()
 {
-    CV_Assert(pthread_key_create(&tlsKey, NULL) == 0);
+    CV_Assert(pthread_key_create(&tlsKey, &TlsAbstraction::releaseThread) == 0);
 }
 TlsAbstraction::~TlsAbstraction()
 {
@@ -1041,10 +1042,10 @@ public:
         threads.clear();
     }
 
-    void releaseThread()
+    void releaseThread(void *pData = NULL)
     {
         AutoLock guard(mtxGlobalAccess);
-        ThreadData *pTD = (ThreadData*)tls.GetData();
+        ThreadData *pTD = (ThreadData *)(pData ? pData : tls.GetData());
         for(size_t i = 0; i < threads.size(); i++)
         {
             if(pTD == threads[i])
@@ -1161,6 +1162,13 @@ static TlsStorage &getTlsStorage()
 {
     CV_SINGLETON_LAZY_INIT_REF(TlsStorage, new TlsStorage())
 }
+
+#ifndef WIN32
+void TlsAbstraction::releaseThread(void *pData)
+{
+    getTlsStorage().releaseThread(pData);
+}
+#endif
 
 TLSDataContainer::TLSDataContainer()
 {
