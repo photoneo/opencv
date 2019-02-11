@@ -1054,7 +1054,17 @@ public:
                 break;
             }
         }
-        tls.SetData(0);
+
+        // Delete associated data instances
+        for(size_t i = 0; i < tlsSlots.size(); i++)
+        {
+            if(tlsSlots[i] && i < pTD->slots.size() && pTD->slots[i])
+            {
+                tlsSlots[i]->deleteDataInstance(pTD->slots[i]);
+            }
+        }
+
+        tls.SetData(NULL);
         delete pTD;
     }
 
@@ -1090,7 +1100,7 @@ public:
             if (thread_slots.size() > slotIdx && thread_slots[slotIdx])
             {
                 dataVec.push_back(thread_slots[slotIdx]);
-                threads[i]->slots[slotIdx] = 0;
+                threads[i]->slots[slotIdx] = NULL;
             }
         }
 
