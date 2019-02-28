@@ -699,11 +699,13 @@ CV_EXPORTS Ptr<TemplateMatching> createTemplateMatching(int srcType, int method,
 @param borderMode Border type. See borderInterpolate for details. BORDER_REFLECT101 ,
 BORDER_REPLICATE , BORDER_CONSTANT , BORDER_REFLECT and BORDER_WRAP are supported for now.
 @param stream Stream for the asynchronous version.
+@param outMaskStart - output cutting start
+@param outMaskEnd - output cutting end 
 
 @sa bilateralFilter
  */
 CV_EXPORTS void bilateralFilter(InputArray src, OutputArray dst, int kernel_size, float sigma_color, float sigma_spatial,
-                                int borderMode = BORDER_DEFAULT, Stream& stream = Stream::Null());
+    int borderMode = BORDER_DEFAULT, Stream& stream = Stream::Null(), int outMaskStart = 0, int outMaskEnd = 0);
 
 ///////////////////////////// Blending ////////////////////////////////
 

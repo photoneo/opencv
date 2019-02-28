@@ -67,15 +67,18 @@ namespace cv { namespace cuda { namespace device
         __device__ __forceinline__ float sqr(const float& a)  { return a * a; }
 
         template<typename T, typename B>
-        __global__ void bilateral_kernel(const PtrStepSz<T> src, PtrStep<T> dst, const B b, const int ksz, const float sigma_spatial2_inv_half, const float sigma_color2_inv_half)
+        __global__ void bilateral_kernel(const PtrStepSz<T> src, PtrStep<T> dst, const B b, const int ksz, const float sigma_spatial2_inv_half, const float sigma_color2_inv_half, int outMaskStart, int outMaskEnd)
         {
             typedef typename TypeVec<float, VecTraits<T>::cn>::vec_type value_type;
 
             int x = threadIdx.x + blockIdx.x * blockDim.x;
             int y = threadIdx.y + blockIdx.y * blockDim.y;
 
-            if (x >= src.cols || y >= src.rows)
-                return;
+            if ((x >= src.cols || 
+                (y <= outMaskStart) || 
+                (y >= (src.rows - outMaskEnd))))
+                    return;
+
 
             value_type center = saturate_cast<value_type>(src(y, x));
 
@@ -125,7 +128,7 @@ namespace cv { namespace cuda { namespace device
         }
 
         template<typename T, template <typename> class B>
-        void bilateral_caller(const PtrStepSzb& src, PtrStepSzb dst, int kernel_size, float sigma_spatial, float sigma_color, cudaStream_t stream)
+        void bilateral_caller(const PtrStepSzb& src, PtrStepSzb dst, int kernel_size, float sigma_spatial, float sigma_color, cudaStream_t stream, int outMaskStart, int outMaskEnd)
         {
             dim3 block (32, 8);
             dim3 grid (divUp (src.cols, block.x), divUp (src.rows, block.y));
@@ -136,7 +139,7 @@ namespace cv { namespace cuda { namespace device
             float sigma_color2_inv_half = -0.5f/(sigma_color * sigma_color);
 
             cudaSafeCall( cudaFuncSetCacheConfig (bilateral_kernel<T, B<T> >, cudaFuncCachePreferL1) );
-            bilateral_kernel<<<grid, block, 0, stream>>>((PtrStepSz<T>)src, (PtrStepSz<T>)dst, b, kernel_size, sigma_spatial2_inv_half, sigma_color2_inv_half);
+            bilateral_kernel << <grid, block, 0, stream >> >((PtrStepSz<T>)src, (PtrStepSz<T>)dst, b, kernel_size, sigma_spatial2_inv_half, sigma_color2_inv_half, outMaskStart, outMaskEnd);
             cudaSafeCall ( cudaGetLastError () );
 
             if (stream == 0)
@@ -144,9 +147,9 @@ namespace cv { namespace cuda { namespace device
         }
 
         template<typename T>
-        void bilateral_filter_gpu(const PtrStepSzb& src, PtrStepSzb dst, int kernel_size, float gauss_spatial_coeff, float gauss_color_coeff, int borderMode, cudaStream_t stream)
+        void bilateral_filter_gpu(const PtrStepSzb& src, PtrStepSzb dst, int kernel_size, float gauss_spatial_coeff, float gauss_color_coeff, int borderMode, cudaStream_t stream, int outMaskStart, int outMaskEnd)
         {
-            typedef void (*caller_t)(const PtrStepSzb& src, PtrStepSzb dst, int kernel_size, float sigma_spatial, float sigma_color, cudaStream_t stream);
+            typedef void(*caller_t)(const PtrStepSzb& src, PtrStepSzb dst, int kernel_size, float sigma_spatial, float sigma_color, cudaStream_t stream, int outMaskStart, int outMaskEnd);
 
             static caller_t funcs[] =
             {
@@ -156,14 +159,14 @@ namespace cv { namespace cuda { namespace device
                 bilateral_caller<T, BrdWrap>,
                 bilateral_caller<T, BrdReflect101>
             };
-            funcs[borderMode](src, dst, kernel_size, gauss_spatial_coeff, gauss_color_coeff, stream);
+            funcs[borderMode](src, dst, kernel_size, gauss_spatial_coeff, gauss_color_coeff, stream, outMaskStart, outMaskEnd);
         }
     }
 }}}
 
 
 #define OCV_INSTANTIATE_BILATERAL_FILTER(T) \
-    template void cv::cuda::device::imgproc::bilateral_filter_gpu<T>(const PtrStepSzb&, PtrStepSzb, int, float, float, int, cudaStream_t);
+    template void cv::cuda::device::imgproc::bilateral_filter_gpu<T>(const PtrStepSzb&, PtrStepSzb, int, float, float, int, cudaStream_t, int, int);
 
 OCV_INSTANTIATE_BILATERAL_FILTER(uchar)
 //OCV_INSTANTIATE_BILATERAL_FILTER(uchar2)
