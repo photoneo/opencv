@@ -41,13 +41,14 @@
 //M*/
 
 #include "precomp.hpp"
+#include <iostream>
 
 using namespace cv;
 using namespace cv::cuda;
 
 #if !defined (HAVE_CUDA) || defined (CUDA_DISABLER)
 
-void cv::cuda::bilateralFilter(InputArray, OutputArray, int, float, float, int, Stream&) { throw_no_cuda(); }
+void cv::cuda::bilateralFilter(InputArray, OutputArray, int, float, float, int, Stream&, int, int) { throw_no_cuda(); }
 
 #else
 
@@ -56,15 +57,15 @@ namespace cv { namespace cuda { namespace device
     namespace imgproc
     {
         template<typename T>
-        void bilateral_filter_gpu(const PtrStepSzb& src, PtrStepSzb dst, int kernel_size, float sigma_spatial, float sigma_color, int borderMode, cudaStream_t stream);
+        void bilateral_filter_gpu(const PtrStepSzb& src, PtrStepSzb dst, int kernel_size, float sigma_spatial, float sigma_color, int borderMode, cudaStream_t stream, int outMaskStart, int outMaskEnd);
     }
 }}}
 
-void cv::cuda::bilateralFilter(InputArray _src, OutputArray _dst, int kernel_size, float sigma_color, float sigma_spatial, int borderMode, Stream& stream)
+void cv::cuda::bilateralFilter(InputArray _src, OutputArray _dst, int kernel_size, float sigma_color, float sigma_spatial, int borderMode, Stream& stream, int outMaskStart, int outMaskEnd)
 {
     using cv::cuda::device::imgproc::bilateral_filter_gpu;
 
-    typedef void (*func_t)(const PtrStepSzb& src, PtrStepSzb dst, int kernel_size, float sigma_spatial, float sigma_color, int borderMode, cudaStream_t s);
+    typedef void(*func_t)(const PtrStepSzb& src, PtrStepSzb dst, int kernel_size, float sigma_spatial, float sigma_color, int borderMode, cudaStream_t s, int outMaskStart, int outMaskEnd);
 
     static const func_t funcs[6][4] =
     {
@@ -92,8 +93,8 @@ void cv::cuda::bilateralFilter(InputArray _src, OutputArray _dst, int kernel_siz
 
     _dst.create(src.size(), src.type());
     GpuMat dst = _dst.getGpuMat();
-
-    func(src, dst, kernel_size, sigma_spatial, sigma_color, borderMode, StreamAccessor::getStream(stream));
+    func(src, dst, kernel_size, sigma_spatial, sigma_color, borderMode, StreamAccessor::getStream(stream),outMaskStart,outMaskEnd);
+    
 }
 
 #endif
