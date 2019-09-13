@@ -1056,11 +1056,14 @@ public:
         }
 
         // Delete associated data instances
-        for(size_t i = 0; i < tlsSlots.size(); i++)
+        if (pTD)
         {
-            if(tlsSlots[i] && i < pTD->slots.size() && pTD->slots[i])
+            for(size_t i = 0; i < tlsSlots.size(); i++)
             {
-                tlsSlots[i]->deleteDataInstance(pTD->slots[i]);
+                if(tlsSlots[i] && i < pTD->slots.size() && pTD->slots[i])
+                {
+                    tlsSlots[i]->deleteDataInstance(pTD->slots[i]);
+                }
             }
         }
 
